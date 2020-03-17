@@ -1,0 +1,449 @@
+---
+title: "multiclass_classification"
+author: "by Gabriel Erichson"
+output: 
+  html_document:
+    df_print: paged
+    code_folding: hide
+    toc: true
+    toc_depth: 2
+    toc_float: 
+      collapsed: true
+    number_sections: true
+    theme: sandstone
+    highlight: haddock
+    css: style.css
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	fig.align = "center",
+	message = FALSE,
+	warning = FALSE,
+	comment = "#>",
+	result = "hide"
+)
+
+options(scipen = 9999999)
+#rm(list=ls())
+
+library(tidyverse)
+library(data.table)
+library(paletti)
+library(GGally)
+library(ggplot2)
+library(rsample) # Initial Split
+library(partykit) #Decision Tree
+library(caret) #Confussion Matrix
+library(randomForest) #random forest
+library(e1071) # naive bayes
+library(nnet) #multinomial logistic regression
+
+```
+
+
+```{r, include=FALSE}
+#COLORS
+library(ggthemes)
+library(paletti)
+# WARNA
+mycolorfill = c(
+  
+  light_blue="#2f4b7c", 
+  light_purple ="#665191",
+  dark_pink="#a05195", 
+  light_pink="#d45087", 
+  light_red="#f95d6a", 
+  dark_orange="#ff6347",
+  semi_orange="#e79658",
+  orange="#dda15a",
+  cream="#b59378",
+  dark_cream="#A57F5F",
+  choc="#85664B",
+  dark_choc="#6b5340",
+  light_orange="#ff7c43"
+)
+
+
+#viz_palette(mycolorfill)
+mycolor_fill  <- get_scale_fill(get_pal(mycolorfill))
+mycolor_color <- get_scale_color(get_pal(mycolorfill))
+mycolor_hex <- get_hex(mycolorfill)
+
+```
+
+
+# Intro
+Bob telah memulai perusahaan selulernya sendiri. Dia ingin berjuang keras supaya bisa menjadi perusahaan besar seperti Apple, Samsung dll. Kendalanya, dia tidak tahu bagaimana memperkirakan kelas harga ponsel yang diciptakan perusahaannya? Di pasar telepon seluler yang kompetitif ini Bob tidak ingin berasumsi begitu saja, sehingga ia mengumpulkan data penjualan ponsel dari berbagai perusahaan. Bob ingin mengetahui hubungan antara fitur-fitur ponsel (misalnya: - RAM, Memori Internal, dll) untuk menentukan kelas harga jualnya, sehingga ia dapat melakukan pemasaran ke masing-masing segmen customer dengan lebih efektif. Dalam hal ini, Bob sudah mengumpulkan data penjualan ponsel dengan dengan kelas harga *low cost*, *medium cost*, *high cost* dan *very high cost*. Dalam hal ini, Bob membutuhkan bantuan untuk merprediksi setiap ponsel yang sudah diciptakan perusahaannya masuk ke kelas harga mana.
+
+
+# Data Preparation {.tabset .tabset-fade .tabset-pills}
+## Read Data
+**Dataset terdiri dari 2000 data dengan 21 variabel**
+```{r}
+phone <- read.csv("data_input/phone.csv")
+data.frame("total.data" = dim(phone)[1],
+           "total.variabel" = dim(phone)[2])
+```
+
+<br>
+
+**10 Data teratas**
+```{r}
+head(phone,10)
+```
+
+<br>
+
+**10 Data terbawah**
+
+```{r}
+tail(phone, 10)
+```
+
+
+## Variable Description
+
+Berikut ini deskripsi dari masing-masing variabel dari dataset ini:
+
+Variable        |    Description                      |  Nilai
+----------------|-------------------------------------|-------------------------------------------------------------
+battery_power   | Kapasitas baterai (mAh)             | mAH
+blue            | Support Bluetooth                   | Ya: 1, Tidak: 0
+clock_speed     | Kecepatan microprocessor            | GHz
+dual_sim        | Support Dual Sim                    | Ya: 1, Tidak: 0
+fc              | Resolusi Kamera Depan               | Megapixel
+four_g          | Support 4G                          | Ya: 1, Tidak: 0
+int_memory      | Kapasitas Memori internal           | Gigabyte
+m_dep           | Ketebelan device                    | Centimeter
+mobile_wt       | Berat Device                        | Gram
+n_cores         | Jumlah Core dari processor          | Satuan Angka
+pc              | Resolusi Kamera Utama               | Megapixel
+px_height       | Resolusi Tinggi Layar               | Pixel
+px_width        | Resolusi Lebar Layar                | Pixel
+ram             | Kapasitas RAM                       | Megabyte
+sc_h            | Tinggi Layar                        | Centimeter
+sc_w            | Lebar Layar                         | Centimeter
+talk_time       | Total waktu pemakaian normal        | Jam
+three_g         | Support 3G                          | Ya: 1, Tidak: 0
+touch_screen    | Support layar sentuh                | Ya: 1, Tidak: 0
+wifi            | Support Wifi                        | Ya: 1, Tidak: 0
+price_range     | Kelas harga *Target Variabel*       | low cost:0, medium cost:1, high cost:2 dan very high cost:3
+
+
+
+
+# Data Pre-processing {.tabset .tabset-fade .tabset-pills}
+## Data Structure
+Berikut ini struktur dataset yang ada:
+```{r}
+glimpse(phone)
+```
+<br>
+
+Berdasarkan struktur data diatas, terdapat variabel-variabel yang tipe datanya perlu disesuaikan lagi berdasar sifat datanya sesuai dengan deskripsi variabel yang sudah dijelaskan pada poin 2.2. Adapun variabel yang perlu disesuaikan yaitu:
+  1. *blue* :  di-konversi dari integer menjadi factor/kategorik <br>
+  2. *dual_sim* : di-konversi dari integer menjadi factor/kategorik <br>
+  3. *four_g* : di-konversi dari integer menjadi factor/kategorik <br>
+  4. *three_g* : di-konversi dari integer menjadi factor/kategorik <br>
+  5. *touch_screen* : di-konversi dari integer menjadi factor/kategorik <br>
+  6. *wifi* : di-konversi dari integer menjadi factor/kategorik <br>
+  7. *price_range* : di-konversi dari integer menjadi factor/kategorik dengan level **low cost**, **medium cost**, **high cost**, **very high cost**
+
+```{r}
+phone <- phone %>%
+  mutate(
+    blue = as.factor(blue),
+    dual_sim  = as.factor(dual_sim),
+    four_g = as.factor(four_g),
+    three_g = as.factor(three_g),
+    touch_screen = as.factor(touch_screen),
+    wifi = as.factor(wifi),
+    price_range = as.factor(price_range),
+    price_range = sapply(price_range, switch,"low cost","medium cost", "high cost","very high cost"),
+    price_range = ordered(price_range, levels=c("low cost","medium cost", "high cost","very high cost"))
+  )
+```
+<br>
+
+Berikut ini struktur dataset setelah dilakukan penyesuaian struktur data:
+
+```{r}
+glimpse(phone)
+```
+<br>
+
+Berikut ini sampel dari 10 data teratas setelah dilakukan penyesuaian struktur data:
+```{r}
+head(phone,10)
+```
+
+<br>
+
+***
+
+
+## Missing Value
+
+Tidak terdapat missing value pada dataset ini.
+```{r}
+colSums(is.na(phone))
+```
+
+<br>
+
+***
+
+## Duplicate Value
+
+Tidak terdapat duplikat value pada dataset ini.
+```{r}
+data.frame("jumlah.seluruh.data"=nrow(phone),
+           "jumlah.data.unik" = nrow(distinct(phone))
+           )
+```
+
+<br>
+
+***
+
+## Data Summary
+```{r}
+summary(phone)
+```
+
+<br>
+
+***
+
+# EDA
+
+Dataset yang dikumpulkan oleh Bob memiliki porsi kelas target yang balance. Proporsi kelas target yang seimbang sangat membantu proses pemodelan. Dapat dilihat pada chart berikut, masing-masing Price Range memiliki proporsi 25%.
+
+```{r}
+phone %>% group_by(price_range) %>% summarise(freq=n()) %>% 
+ggplot( aes(x="", y=freq, fill=price_range)) + geom_bar(stat="identity", width=1)+
+coord_polar("y", start=0) + 
+  geom_text(aes(label = paste0(round((freq/sum(freq))*100), "%")), position = position_stack(vjust = 0.5), color="white")+
+  scale_fill_manual(values=c(mycolor_hex("light_blue"),mycolor_hex("light_pink"),mycolor_hex("light_blue"),mycolor_hex("dark_pink"))) +
+  labs(x = NULL, y = NULL, fill = "Price Range", title = "Data Proportion by Price Range")+
+  theme_classic() + 
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.title=element_text(size=9,face="bold"), 
+        legend.position = "right"
+        )
+
+```
+
+<br>
+
+***
+
+# Cross Validation
+
+Dari 2000 data observasi, saya membagi **80% sebagai data train** dan **20% sebagai data test**. Data train digunakan untuk melakukan pemodelan dan data test dianggap sebagai unseen data yang digunakan untuk menguji seberapa baik model yang dibuat. Dapat dilihat pada chart dibawah, setiap target variable memiliki proporsi data train dan data test yang seimbang. Setiap target variable memiliki data train sebanyak 401 observasi dan memiliki data test sebanyak 99 observasi. Karena proporsi kelas target sudah sesuai maka dapat langsung dilanjutkan ke tahap pemodelan.
+
+```{r}
+set.seed(123)
+split <- initial_split(phone, prop = 0.8, strata = "price_range")
+phone_train <- training(split)
+phone_test <- testing(split)
+
+df_split <- rbind(
+data.frame(table(phone_train$price_range),"type"="train"),
+data.frame(table(phone_test$price_range),"type"="test")) %>% 
+  mutate(
+    Var1 = as.factor(Var1),
+    type = as.factor(type)
+  ) 
+
+ggplot(df_split, aes(x=Var1,y=Freq, fill=type))+
+  geom_col(position = "dodge")+
+  geom_text(aes(label=Freq, y=Freq+20), size=3, position = position_dodge(width = 1))+
+  labs(x = "Price Class", y = "Frequency", fill = "Data", title = "Price Range Proportion Train vs Test")+
+  theme_minimal()+
+  theme(
+      axis.title=element_text(size=8,face="bold"),
+      axis.text.x=element_text(size=10),
+      axis.text.y=element_text(size=10)
+      )+
+  mycolor_fill()
+
+```
+
+
+
+<br>
+
+***
+
+
+# Modelling {.tabset .tabset-fade .tabset-pills}
+
+## Naive Bayes
+
+```{r}
+nvb_model <- naiveBayes(price_range ~ ., phone_train, laplace = 1)
+summary(nvb_model)
+
+nvb_model$call
+
+nvb_prediction <- predict(nvb_model, phone_test)
+
+confusionMatrix(
+  phone_test$price_range,
+  nvb_prediction
+)
+
+```
+
+
+***
+
+<br>
+
+
+## Decision Tree
+
+```{r}
+dtree_model <- ctree(formula = price_range ~ ., data = phone_train)
+plot(dtree_model, type = "simple")
+levels(phone$price_range)
+dtree_prediction <- predict(dtree_model,phone_test)
+dtree_probability <- predict(dtree_model,phone_test, type="prob")
+
+confusionMatrix(
+  phone_test$price_range,
+  dtree_prediction,
+  mode = "everything"
+)
+
+
+# Question: Bagaimana cara mengevaluasi multiclass target?
+
+#
+# library(ROCR)
+# 
+# diab_prediction_prob <- predict(diab_model,diab_test,type = "prob")
+# 
+# pred <- prediction(dtree_probability[, 4],
+#                    phone_test$price_range)
+# # ROC Curve
+# perf <- performance(pred, "tpr", "fpr")
+# plot(perf, colorize = T)
+# 
+# # AUC
+# # nilainya 0 - 1, semakin mendekati 1 semakin baik
+# auc <- performance(pred, "auc")
+# auc@y.values[[1]]
+
+
+```
+
+
+***
+
+<br>
+
+## Random Forest with K-Fold
+
+```{r}
+# I decide to use nearZeroVar to identify low variance of each observation variable
+# each factor has been converted before 
+#nzero_var <- nearZeroVar(phone) 
+
+# exclude each variable that has low variance
+#phone_rf <- phone[,-nzero_var]
+#ncol(phone_rf)
+
+# Random Forest method with K-Fold Cross Validation
+# set.seed(123)
+# rf_model <- train(price_range ~., 
+#                   data = phone_train, 
+#                   method = "rf", 
+#                   trControl= trainControl(method = 'repeatedcv', number = 20, repeats = 20))
+# 
+# wd <-  as.character(getwd())
+# saveRDS(object=rf_model, file=paste(paste(wd,"/model/",sep = ""),"phone_random_forest.rds",sep=""))
+
+rf_model <- readRDS("model/phone_random_forest.rds")
+
+
+rf_model$finalModel
+#summary(rf_model$finalModel)
+#rf_model$finalModel[c("call", "confusion","oob.times")]
+
+plot(rf_model)
+varImp(rf_model)
+
+
+plot(rf_model$finalModel)
+legend("topright", colnames(rf_model$finalModel$err.rate),
+       col=1:6,cex=0.8,fill=1:6)
+
+
+rf_prediction <- predict(rf_model, phone_test)
+confusionMatrix(
+  rf_prediction,
+   phone_test$price_range
+)
+
+
+
+
+
+```
+
+
+***
+
+<br>
+
+## Random Forest without K-Fold
+
+```{r}
+rf_model_origin <- randomForest(price_range ~ ., data = phone_train, importance=TRUE, ntree = 500)
+plot(rf_model_origin)
+rf_prediction_original <- predict(rf_model_origin, phone_test)
+confusionMatrix(
+  rf_prediction_original,
+   phone_test$price_range
+)
+
+```
+
+
+***
+
+<br>
+
+## Multinomial Logistic Regression
+```{r}
+multinom_model <- multinom(price_range~.,data=phone_train)
+summary(multinom_model)
+#head(round(fitted(multinom_model),9),1)
+#head(fitted(multinom_model),1)
+multinom_predict <- predict(multinom_model,phone_test, type="probs")
+
+phone_multinome_predict <- phone_test %>% 
+  mutate(
+    predict_price_range= predict(multinom_model, phone_test)
+  )
+
+phone_multinome_predict <- cbind(phone_multinome_predict,
+                                 round(predict(multinom_model, phone_test, type = "probs"),9))
+
+
+confusionMatrix(
+  phone_multinome_predict$predict_price_range,
+   phone_test$price_range
+)
+
+```
+
+
