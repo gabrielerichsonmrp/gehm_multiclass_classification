@@ -1,7 +1,8 @@
 # Mobile Price Classification
 ## classify multiclass of mobile price range
 
-**Method:** Naive Bayes, Decission Tree, Random Forest, Random Forest using K-Fold, Multinomial Logistic Regression
+**Modelling:** Naive Bayes, Decission Tree, Random Forest, Random Forest using K-Fold, Multinomial Logistic Regression
+**Model Evaluation:** Confussion Matrix 
 
 <br><br>
 
