@@ -3396,7 +3396,7 @@ div.tocify {
 </div>
 <div id="decision-tree" class="section level2">
 <h2><span class="header-section-number">6.2</span> Decision Tree</h2>
-<p>Decision tree merupakan suatu metode klasifikasi yang menggunakan struktur pohon, dimana setiap node merepresentasikan atribut dan cabangnya merepresentasikan nilai dari atribut, sedangkan daunnya digunakan untuk merepresentasikan kelas. Decision tree merupakan metode klasifikasi yang cukup <strong>powerfull</strong> karena dapat <code>memperbolehkan antar prediktornya saling berkorelaso</code>, <code>prediktor</code> juga dapat berupa <code>data numerik ataupun kategorik</code> dan cukup <code>interpretabale</code></p>
+<p>Decision tree merupakan suatu metode klasifikasi yang menggunakan struktur pohon, dimana setiap node merepresentasikan atribut dan cabangnya merepresentasikan nilai dari atribut, sedangkan daunnya digunakan untuk merepresentasikan kelas. Decision tree merupakan metode klasifikasi yang cukup <strong>powerfull</strong> karena <em>memperbolehkan antar prediktornya saling berkorelasi</em>, <em>prediktor</em> juga dapat berupa <em>data numerik ataupun kategorik</em> dan cukup <em>interpretabale</em></p>
 <div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb21-1" title="1"><span class="co"># Model Fitting</span></a>
 <a class="sourceLine" id="cb21-2" title="2">dtree_model &lt;-<span class="st"> </span><span class="kw">ctree</span>(<span class="dt">formula =</span> price_range <span class="op">~</span><span class="st"> </span>., </a>
 <a class="sourceLine" id="cb21-3" title="3">                     <span class="dt">data =</span> phone_train,</a>
