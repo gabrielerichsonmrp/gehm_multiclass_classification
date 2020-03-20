@@ -1,5 +1,5 @@
 ---
-title: "multiclass_classification"
+title: "Mobile Price Classification"
 author: "by Gabriel Erichson"
 output: 
   html_document:
@@ -30,6 +30,7 @@ options(scipen = 9999999)
 #rm(list=ls())
 
 library(tidyverse)
+library(yardstick)
 library(data.table)
 library(paletti)
 library(GGally)
@@ -45,6 +46,10 @@ library(e1071) # naive bayes
 library(nnet) #multinomial logistic regression
 library(gridExtra)
 library(grid)
+library(knitr)
+library(kableExtra)
+library(cowplot)
+library(formattable)
 
 ```
 
@@ -267,7 +272,7 @@ ggcorr(phone,label = T, size=3, label_size = 3, hjust=0.95,
 
 ```
 
-Matriks korelasi diatas menunjukan sebagaian besar variabel bersifat independen atau tidak saling berkorelasi, kecuali:
+Matriks korelasi diatas menunjukan sebagaian besar variabel bersifat independen atau tidak saling berkorelasi, kecuali:<br>
   * **sc_w** dan **sc_h** memiliki korelasi positif sebesar 0.5 <br>
   * **px_width** dan **px_height** memiliki korelasi positif sebesar 0.5 <br>
   * **fc** dan **pc**memiliki korelasi positif sebesar 0.6 <br>
@@ -326,12 +331,15 @@ Seperti yang dijelaskan pada intro diawal, Bob ingin memprediksi sebuah ponsel m
 
 ```{r}
 ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
+  # metrics summary
+  
   my_subtitle <- paste("Data:",dat_type,"    ",
                        "Accuracy:", paste(round((cfm$overall[1])*100,2),"%"),
                        "   ",
                        "Kappa:", paste(round((cfm$overall[2])*100,2),"%"))
-  plot <-
-    ggplot(data = as.data.frame(cfm$table),aes(x = Reference, y = Prediction)) +
+  
+  
+  plot <- ggplot(data = as.data.frame(cfm$table),aes(x = Reference, y = Prediction)) +
     geom_tile(aes(fill = log(Freq)), colour = "white") +
     geom_text(aes(x = Reference, y = Prediction, label = Freq),color="white") +
     labs(
@@ -343,9 +351,9 @@ ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
     theme_minimal()+
     theme(
           title = element_text(size=14),
-          
           axis.title=element_text(size=12, face="bold"),
           axis.text.x=element_text(size=12),
+           axis.text.y=element_text(size=12),
           legend.position = "none"
           ) +
     scale_fill_gradient(low=low_color,na.value = "#C0C0C0", high=high_color)
@@ -353,6 +361,45 @@ ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
   
   return(plot)
 }
+
+
+summaryMatrix <- function(data_train, v_actual_train, v_prediction_train, header_color_train,
+                          data_test, v_actual_test, v_prediction_test, header_color_test){
+ sm_train <- data_train %>%
+    summarise(
+      accuracy = paste(round((accuracy_vec(v_actual_train, v_prediction_train))*100,2),"%"),
+      sensitivity = paste(round((sens_vec(v_actual_train, v_prediction_train))*100,2),"%"),
+      specificity = paste(round((spec_vec(v_actual_train, v_prediction_train))*100,2),"%"),
+      precision = paste(round((precision_vec(v_actual_train, v_prediction_train))*100,2),"%")
+    )
+ 
+sm_test <- data_test %>%
+    summarise(
+      accuracy = paste(round((accuracy_vec(v_actual_test, v_prediction_test))*100,2),"%"),
+      sensitivity = paste(round((sens_vec(v_actual_test, v_prediction_test))*100,2),"%"),
+      specificity = paste(round((spec_vec(v_actual_test, v_prediction_test))*100,2),"%"),
+      precision = paste(round((precision_vec(v_actual_test, v_prediction_test))*100,2),"%")
+    )
+ 
+sm <- rbind(sm_train,sm_test)
+sm <- cbind(data.frame(data=c("data train","data test")),sm)
+
+
+ sm %>% 
+   mutate(
+    data = color_tile(mycolor_hex("dark_choc"),mycolor_hex("light_blue"))(data)
+    
+  ) %>%
+  kable("html", escape = F, align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F) %>%
+  column_spec(1, bold = T, color = "white") %>%
+  column_spec(column = 1:5, width = "18em") %>% 
+#    column_spec(column = 1:4, background = header_color_train) %>% 
+#    column_spec(column = 5:8, background = header_color_test) %>% 
+ add_header_above(c("Metrics Summary Data Train vs Test" = 5)) 
+}
+
+
 ```
 
 
@@ -364,7 +411,27 @@ Metode Naive Bayes memiliki asumsi awal yaitu semua variabel bersifat independen
 # Model Fitting
 nvb_model <- naiveBayes(price_range ~ ., phone_train, laplace = 1)
 
-# Predict
+
+# Predict Data Train
+nvb_probability_train <- predict(nvb_model, phone_train, type = "raw")
+nvb_prediction_train <- predict(nvb_model, phone_train, type = "class")
+
+# Data Predict
+nvb_result_train <- cbind(phone_train, price_range_prediction=nvb_prediction_train,
+                    round(nvb_probability_train,3))
+
+nvb_result_train <- nvb_result_train[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_train))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+
+
+# Predict Data Test
 nvb_probability <- predict(nvb_model, phone_test, type = "raw")
 nvb_prediction <- predict(nvb_model, phone_test, type = "class")
 
@@ -387,20 +454,51 @@ nvb_result
 Data diatas merupakan hasil prediksi metode Naive Bayes terhadap data tes. **price_range_actual** merupakan data sebenarnya dan **price_range_prediction** merupakan data hasil prediksi, kemudian Data **low cost, medium cost, high cost dan very high cost** merupakan nilai probability terhadap setiap kelas dari target variabel. Sehingga, hasil prediksi pada **price_range_prediction** diambil berdasarkan nilai probability yang paling tinggi. Dapat dilihat pada data diatas, hasil prediksi masih banyak tidak sesuai dengan nilai aktualnya. Selain itu, terdapat data yang nilai probability kelas target nya cenderung tidak jauh berbeda antara satu dan lainnya, misalkan data nomor 2,20 dan 28. Hal ini menunjukan tingkat akurasi hasil prediksi yang kurang maksimal. Mari kita cek hasil evaluasinya menggunakan Confussion Matrix: 
 
 
-```{r}
+```{r, fig.asp=0.5, fig.width=12}
 # Evaluation
+# TRAIN FITTED VALUE
+# PREDICT TEST
+cm_bayes_train <- confusionMatrix(
+  data = nvb_result_train$price_range_prediction, 
+  reference =nvb_result_train$price_range_actual
+)
+
+ggplotConfusionMatrix(my_title = "Naive Bayes: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+                      dat_type="Train",
+                      cfm=cm_bayes_train,
+                      low_color=mycolor_hex("smooth_blue"),
+                      high_color =mycolor_hex("light_blue")) -> nvb1
+
+
+# PREDICT TEST
 cm_bayes <- confusionMatrix(
-  data =nvb_result$price_range_prediction, 
+  data = nvb_result$price_range_prediction, 
   reference =nvb_result$price_range_actual
 )
 
-ggplotConfusionMatrix(my_title = "Confussion Matrix: Naive Bayes",
+ggplotConfusionMatrix(my_title = "",
                       dat_type="Test",
                       cfm=cm_bayes,
-                      low_color=mycolor_hex("smooth_blue"),
-                      high_color =mycolor_hex("light_blue"))
+                      low_color=mycolor_hex("cream"),
+                      high_color =mycolor_hex("dark_choc")) -> nvb2
 
+
+grid.arrange(nvb1, nvb2, ncol = 2)
 ```
+
+```{r}
+summaryMatrix(data_train=nvb_result_train,
+              v_actual_train = nvb_result_train$price_range_actual,
+              v_prediction_train = nvb_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=nvb_result,
+              v_actual_test = nvb_result$price_range_actual,
+              v_prediction_test = nvb_result$price_range_prediction,
+              header_color_test = mycolor_hex("dark_choc")
+              )
+```
+
 
 Hasil evaluasi pada Confussion Matrix diatas menunjukan model Naive Bayes yang sudah dibuat memiliki tingkat akurasi **83.84%** dalam memprediksi kelas harga. Jika dilihat, hasil prediksi dan aktual yang ditebak benar memang menunjukan selisih yang cukup besar. Hasil Prediksi pada harga kelas Low Cost meleset sebanyak 15 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 15 ponsel, hasil prediksi harga kelas High Cost meleset 22 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 12 ponsel. Mari kita coba metode Decision Tree. 
 
@@ -496,10 +594,25 @@ ggplotConfusionMatrix(my_title = "",
                       low_color=mycolor_hex("cream"),
                       high_color =mycolor_hex("dark_choc")) -> dtree_p2
 
-
 grid.arrange(dtree_p1, dtree_p2, ncol = 2)
 
 ```
+
+```{r, echo=FALSE}
+
+summaryMatrix(data_train=dtree_result_train,
+              v_actual_train = dtree_result_train$price_range_actual,
+              v_prediction_train = dtree_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=dtree_result,
+              v_actual_test = dtree_result$price_range_actual,
+              v_prediction_test = dtree_result$price_range_prediction,
+              header_color_test = mycolor_hex("dark_choc")
+              )
+
+```
+
 
 Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan model Decision Tree yang sudah dibuat lumayan fit, selisih tingkat akurasi antara hasil prediksi data train dan data test hanya sebesar **3.85%**. Tingkat akurasi hasil klasifikasi juga lumayan bagus, dimana pada data train sebesar **90.21%** dan tingkat akurasi pada data test sebesar **86.36%**. Meskipun begitu, hasil prediksi dan aktual yang ditebak benar memang masih menunjukan selisih yang cukup besar. Hasil Prediksi data test pada harga kelas Low Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 15 ponsel, hasil prediksi harga kelas High Cost meleset 17 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 13 ponsel. Namun, dapat kita simpulkan bahwa metode Decision Tree lebih baik daripada metode Naive Bayes untuk case ini. Mari kita coba metode Random Forest. 
 
@@ -510,7 +623,7 @@ Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan model Decision Tr
 
 ## Random Forest
 
-## Random Forest
+### Random Forest
 
 ```{r}
 rf_model_origin <- randomForest(price_range ~ ., 
@@ -533,7 +646,7 @@ confusionMatrix(
 <br>
 
 
-## Random Forest with K-Fold
+### Random Forest with K-Fold
 
 ```{r}
 # I decide to use nearZeroVar to identify low variance of each observation variable
@@ -615,7 +728,5 @@ confusionMatrix(
 
 
 
-# Pertanyaan
-1. Apa bedanya Random Forest dan Random Forest using K-Fold?
-2. Bagaimana cara menentukan K-Fold?
-3. Bagaimana cara tunning model Decission Tree, Naive Bayes dan Random Forest?
+# Notes:<br>
+Sorry, full Analysis and Modelling is Inprogress. I Will update soon.
