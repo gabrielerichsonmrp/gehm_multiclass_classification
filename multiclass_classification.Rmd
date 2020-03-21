@@ -16,6 +16,9 @@ output:
   pdf_document: default
 ---
 
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -42,6 +45,7 @@ library(rpart) #Decision Tree
 library(rpart.plot) #Decision Tree
 library(caret) #Confussion Matrix
 library(randomForest) #random forest
+library(reprtree)
 library(e1071) # naive bayes
 library(nnet) #multinomial logistic regression
 library(gridExtra)
@@ -91,6 +95,8 @@ Bob telah memulai perusahaan selulernya sendiri. Dia ingin berjuang keras supaya
 
 
 # Data Preparation {.tabset .tabset-fade .tabset-pills}
+Dataset ini didownload dari [Mobile Price Classification](https://www.kaggle.com/iabhishekofficial/mobile-price-classification) 
+
 ## Read Data
 **Dataset terdiri dari 2000 data dengan 21 variabel**
 ```{r}
@@ -220,14 +226,6 @@ data.frame("jumlah.seluruh.data"=nrow(phone),
 
 ***
 
-## Data Summary
-```{r}
-summary(phone)
-```
-
-<br>
-
-***
 
 # EDA
 
@@ -405,6 +403,7 @@ sm <- cbind(data.frame(data=c("data train","data test")),sm)
 
 ## Naive Bayes
 
+**Naive Bayes**<br>
 Metode Naive Bayes memiliki asumsi awal yaitu semua variabel bersifat independen atau tidak saling berkorelasi. Pada matriks korelasi diatas menunjukan beberapa variabel memiliki korelasi, sehingga dapat disimpulkan bahwa metode Naive Bayes akan kurang maksimal untuk case kalsifikasi ini. Namun, mari kita tetap kita coba. Berikut hasilnya:
 
 ```{r}
@@ -509,16 +508,13 @@ Hasil evaluasi pada Confussion Matrix diatas menunjukan model Naive Bayes yang s
 
 ## Decision Tree
 
+**Decision Tree**<br>
 Decision tree merupakan suatu metode klasifikasi yang menggunakan struktur pohon, dimana setiap node merepresentasikan atribut dan cabangnya merepresentasikan nilai dari atribut, sedangkan daunnya digunakan untuk merepresentasikan kelas. Decision tree merupakan metode klasifikasi yang cukup **powerfull** karena *memperbolehkan antar prediktornya saling berkorelasi*, *prediktor* juga dapat berupa *data numerik ataupun kategorik* dan cukup *interpretabale*  
 
 ```{r}
 # Model Fitting
 dtree_model <- ctree(formula = price_range ~ ., 
-                     data = phone_train,
-                     control = ctree_control(mincriterion = 0.90))
-# plot(dtree_model, type = "simple")
-# levels(phone$price_range)
-
+                     data = phone_train)
 
 # Predict data train
 dtree_prediction_train <- predict(dtree_model,phone_train)
@@ -613,8 +609,110 @@ summaryMatrix(data_train=dtree_result_train,
 
 ```
 
+Hasil evaluasi model Decision Tree menggunakan Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi lumayan bagus, dimana tingkat akurasi pada data train sebesar **90.21%** dan tingkat akurasi pada data test sebesar **86.36%**. Namun, Hasil prediksi dan aktual yang ditebak benar memang masih menunjukan selisih yang cukup besar. Hasil Prediksi data test pada harga kelas Low Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 15 ponsel, hasil prediksi harga kelas High Cost meleset 17 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 13 ponsel. Namun, dapat kita simpulkan bahwa metode Decision Tree lebih baik daripada metode Naive Bayes untuk case ini. Mari kita coba tunning untuk mengurangi. Meskipun begitu dapat dikatakan model ini adalah *underfit model* dengan selisih tingkat akurasi sebesar **3.85%**. <br>
 
-Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan model Decision Tree yang sudah dibuat lumayan fit, selisih tingkat akurasi antara hasil prediksi data train dan data test hanya sebesar **3.85%**. Tingkat akurasi hasil klasifikasi juga lumayan bagus, dimana pada data train sebesar **90.21%** dan tingkat akurasi pada data test sebesar **86.36%**. Meskipun begitu, hasil prediksi dan aktual yang ditebak benar memang masih menunjukan selisih yang cukup besar. Hasil Prediksi data test pada harga kelas Low Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 15 ponsel, hasil prediksi harga kelas High Cost meleset 17 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 13 ponsel. Namun, dapat kita simpulkan bahwa metode Decision Tree lebih baik daripada metode Naive Bayes untuk case ini. Mari kita coba metode Random Forest. 
+Menurut saya pribadi selisih ini masih cukup besar, sehingga dapat kita lakukan pruning pada model yang sudah dibuat. Pruning merupakan bagian dari proses pembentukan decision tree. Saat pembentukan decision tree, beberapa node merupakan outlier maupun hasil dari noise data. Penerapan pruning pada decision tree, dapat mengurangi outlier maupun noise data pada decision tree awal sehingga dapat meningkatkan akurasi pada klasifikasi data. Algoritma Pruning sendiri memiliki kriteria value yaitu:<br>
+  
+  1. **mincriterion**: Nilainya adalah 1 - Alpha. Bekerja sebagai “regulator” untuk kedalaman pohon. Semakin kecil nilainya maka semakin kompleks pohon yang dihasilkan. Misal mincriterion = 0.8, maka p-value < 0.2 yang digunakan untuk melakukan split/memecah node. <br>
+  2. **minsplit**: Jumlah observasi minimal pada pada node sebelum melakukan split. Misal minsplit = 50, maka node tersebut tidak akan dipecah jika observasi yang terdapat di dalam node < 50.<br>
+  3. **minbucket**: jumlah observasi minimal pada terminal node. Misal minbucket = 3, maka setiap terminal node yang terbentuk harus mempunyai minimal 3 observasi.<br>
+
+
+Saya sudah mencoba beberapa nilai untuk masing-masing mincriterion, minsplit dan minbucket terhadap model tree yang sudah dibuat, namun tidak saya cantumkan semua disini. Dari hasil percobaan yang saya lakukan didapat pruning terbaik dengan kriteria **mincriterion = 0.92 minsplit = 16**. Mari kita lihat hasilnya:
+
+```{r, fig.asp=0.5, fig.width = 12}
+# Model Decision Tress & Pruning
+dtree_model <- ctree(formula = price_range ~ ., 
+                     data = phone_train,
+                     control = ctree_control(mincriterion = 0.92, minsplit = 16))
+
+# Predict data train
+dtree_prediction_train <- predict(dtree_model,phone_train)
+dtree_probability_train <- predict(dtree_model,phone_train, type="prob")
+dtree_probability_train <- data.frame(matrix(unlist(dtree_probability_train), 
+                                             nrow=nrow(phone_train), byrow=T),stringsAsFactors=FALSE)
+colnames(dtree_probability_train) <- c("low_price","medium_price","high_price","very_high_price")
+
+# Train Data Predict
+dtree_result_train <- cbind(phone_train, price_range_prediction=dtree_prediction_train,
+                    round(dtree_probability_train,3))
+
+dtree_result_train <- dtree_result_train[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_train))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+
+# Predict data test
+dtree_prediction <- predict(dtree_model,phone_test)
+dtree_probability <- predict(dtree_model,phone_test, type="prob")
+dtree_probability <- data.frame(matrix(unlist(dtree_probability), 
+                                       nrow=nrow(phone_test), byrow=T),stringsAsFactors=FALSE)
+colnames(dtree_probability) <- c("low_price","medium_price","high_price","very_high_price")
+
+# Test Data Predict
+dtree_result <- cbind(phone_test, price_range_prediction=dtree_prediction,
+                    round(dtree_probability,3))
+
+dtree_result <- dtree_result[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_test))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+# Evaluation (Pruning)
+cfm_dtree_train <- confusionMatrix(
+  data =dtree_result_train$price_range_prediction, 
+  reference =dtree_result_train$price_range_actual
+)
+
+ggplotConfusionMatrix(my_title = "Pruning Decision Tree: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+                      dat_type="Train",
+                      cfm=cfm_dtree_train,
+                      low_color=mycolor_hex("smooth_blue"),
+                      high_color =mycolor_hex("light_blue")) -> dtree_p1
+
+
+cfm_dtree <- confusionMatrix(
+  data =dtree_result$price_range_prediction, 
+  reference =dtree_result$price_range_actual
+)
+
+
+ggplotConfusionMatrix(my_title = "",
+                      dat_type="Test",
+                      cfm=cfm_dtree,
+                      low_color=mycolor_hex("cream"),
+                      high_color =mycolor_hex("dark_choc")) -> dtree_p2
+
+grid.arrange(dtree_p1, dtree_p2, ncol = 2)
+
+
+```
+
+```{r, echo=FALSE}
+
+summaryMatrix(data_train=dtree_result_train,
+              v_actual_train = dtree_result_train$price_range_actual,
+              v_prediction_train = dtree_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=dtree_result,
+              v_actual_test = dtree_result$price_range_actual,
+              v_prediction_test = dtree_result$price_range_prediction,
+              header_color_test = mycolor_hex("dark_choc")
+              )
+
+```
+
+Berdasar hasil evaluasi diatas, model decision tree dengan penerapan pruning yang dibuat mengalami peningkatan akurasi meskipun kurang signifikan. Tingkat akurasi pada data train sebesar **90.59%** atau meningkat **0.38%** dan tingkat akurasi pada data test sebesar **87.63%** atau meningkat **1.27%**. Model ini masih underfit, namun selisih tingkat akurasinya juga menurun menjadi **2.96%** atau menurun **0.89%**. Meskipun begitu perubahan tidak signifikan, dapat dikatan pruning yang dilakukan dapat meningkatan performa model Decision Tree sebelumnya. Hasil ini memang masih kurang baik, maka mari kita coba menggunakan metode Random Forest.
 
 
 ***
@@ -623,78 +721,281 @@ Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan model Decision Tr
 
 ## Random Forest
 
-### Random Forest
+
+**Random Forest**<br>
+Random forest merupakan metode klasifikasi berbasis ensamble method dan dibangun dari beberapa decision tree yang berbeda karakteristiknya. Ensamble method sendiri merupakan dimana terdapat beberapa model berbeda yang dilatih untuk memecahkan masalah yang sama dan digabungkan untuk mendapatkan hasil terbaik. Penerapannya pada random forest yaitu metode Random Forest akan membangun beberapa Decision Tree yang dimana setiap membangun 1 tree digunakan observasi dan prediktor yang berbeda dari hasil sampling untuk dilatih dan mencari hasil terbaik. Performa model Random Forest ini akan kurang baik apabila data prediktor memiliki variansi rendah atau variansinya mendekati 0(nol). Maka, sebelum melakukan pemodelan mari kita cek variansinya dahulu:
 
 ```{r}
-rf_model_origin <- randomForest(price_range ~ ., 
-                                data = phone_train, 
-                                importance=TRUE, ntree = 500)
-plot(rf_model_origin, main="Random Forest")
-
-
-rf_prediction_original <- predict(rf_model_origin, phone_test)
-confusionMatrix(
-  rf_prediction_original,
-   phone_test$price_range
-)
-
-```
-
-
-***
-
-<br>
-
-
-### Random Forest with K-Fold
-
-```{r}
-# I decide to use nearZeroVar to identify low variance of each observation variable
 # each factor has been converted before 
-#nzero_var <- nearZeroVar(phone) 
+nzero_var <- nearZeroVar(phone)
 
 # exclude each variable that has low variance
 #phone_rf <- phone[,-nzero_var]
 #ncol(phone_rf)
-
-# Random Forest method with K-Fold Cross Validation
-# set.seed(123)
-# rf_model <- train(price_range ~., 
-#                   data = phone_train, 
-#                   method = "rf", 
-#                   trControl= trainControl(method = 'repeatedcv', number = 20, repeats = 20))
-# 
-# wd <-  as.character(getwd())
-# saveRDS(object=rf_model, file=paste(paste(wd,"/model/",sep = ""),"phone_random_forest.rds",sep=""))
-
-rf_model <- readRDS("model/phone_random_forest.rds")
-
-
-rf_model$finalModel
-#summary(rf_model$finalModel)
-#rf_model$finalModel[c("call", "confusion","oob.times")]
-
-plot(rf_model)
-varImp(rf_model)
-
-
-plot(rf_model$finalModel)
-legend("topright", colnames(rf_model$finalModel$err.rate),
-       col=1:6,cex=0.8,fill=1:6)
-
-
-rf_prediction <- predict(rf_model, phone_test)
-confusionMatrix(
-  rf_prediction,
-   phone_test$price_range
-)
+```
+Hasil pengecekan menggunakan fungsi nearZeroVar diatas menunjukan tidak ada prediktor yang memiliki variansi rendah, sehingga dapat dilanjutkan ke proses pemodelan.
 
 
 
+### Random Forest
+Model random forest akan memulai dengan inisialisasi random, maka perlu dilakukan set.seed supaya nilai yang dihasilkan konsisten. Berikut penerapan metode random forest menggunakan 500 tree.
 
+```{r}
+set.seed(777)
+rf_origin_model <- randomForest(price_range ~ ., 
+                                data = phone_train, 
+                                importance=TRUE, 
+                                ntree = 1000)
+rf_origin_model
 
 ```
 
+Informasi diatas merupakan informasi terkait model Random Forest yang dibuat. Model yang dibuat menggunakan 1000 tree dan jumlah variabel yang dicoba setiap percabangan ada 4 variabel. Lalu dari seluruh percobaan tersebut didapatkan nilai OOB (Out Of Box) dengan estimasi error rate pada data train sebesar **11.66%**. Perlu kita ketahui, semakin banyak jumlah tree pada model Random Forest maka akan semakin berat komputasi yang dilakukan, maka dari itu perlu kita lihat jumlah Tree yang optimal untuk diterapkan pada model.
+
+```{r}
+plot(rf_origin_model, main="Random Forest")
+legend("topright", colnames(rf_origin_model$err.rate),col=1:6,cex=0.8,fill=1:6)
+```
+
+Grafik diatas menunjukan jumlah Tree dan Estimasi Error yang didapatkan. Dari 1000 tree yang dibuat, dapat dilihat nilai error menggunakan 370 sudah tergolong error minimum dari 1000 tree. Oleh karena itu, pada model random forest ini akan menggunakan 370 tree saja, sehingga beban komputasi berkurang.
+
+```{r}
+set.seed(777)
+rf_origin_model <- randomForest(price_range ~ ., 
+                                data = phone_train, 
+                                importance=TRUE, 
+                                ntree = 370)
+rf_origin_model
+
+```
+
+Informasi diatas merupakan informasi terkait model Random Forest yang dibuat menggunakan 370 tree. Model dengan 370 tree menghasilkan nilai OOB (Out Of Box) dengan estimasi error rate sebesat 11.76%, yang dimana error ini relatif sama apabila menggunakan 1000 tree. Oleh karena, itu mari kita coba melakukan prediksi menggunakan model ini.
+
+
+```{r}
+
+# Predict to data Train
+rf_origin_result_train <- cbind(phone_train, price_range_prediction=rf_origin_model$predicted,
+                    round(rf_origin_model$votes,3))
+# Data Predict
+rf_origin_result_train <- rf_origin_result_train[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_train))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+
+
+# Predict to Data Test
+rf_prediction <- predict(rf_origin_model, phone_test)
+rf_probability <- predict(rf_origin_model, phone_test, type="prob")
+
+# Data Predict
+rf_origin_result <- cbind(phone_test, price_range_prediction=rf_prediction,
+                    round(rf_probability,3))
+
+rf_origin_result <- rf_origin_result[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_test))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+rf_origin_result
+```
+
+Data diatas merupakan hasil prediksi metode Random Forest menggunakan 170 tree terhadap data tes. **price_range_actual** merupakan data sebenarnya dan **price_range_prediction** merupakan data hasil prediksi, kemudian Data **low cost, medium cost, high cost dan very high cost** merupakan nilai probability terhadap setiap kelas dari target variabel. Sehingga, hasil prediksi pada **price_range_prediction** diambil berdasarkan nilai probability yang paling tinggi. Mari kita cek hasil evaluasinya menggunakan Confussion Matrix: 
+
+```{r, fig.asp=0.5, fig.width = 12}
+# Model Evaluation Random Forest with 370 tree
+cfm_rf_origin_train <- confusionMatrix(
+  data =rf_origin_result_train$price_range_prediction, 
+  reference =rf_origin_result_train$price_range_actual
+)
+
+ggplotConfusionMatrix(my_title = "Random Forest: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+                      dat_type="Train",
+                      cfm=cfm_rf_origin_train,
+                      low_color=mycolor_hex("smooth_blue"),
+                      high_color =mycolor_hex("light_blue")) -> rf_p1
+
+
+cfm_rf_origin <- confusionMatrix(
+  data =rf_origin_result$price_range_prediction, 
+  reference =rf_origin_result$price_range_actual
+)
+
+
+ggplotConfusionMatrix(my_title = "",
+                      dat_type="Test",
+                      cfm=cfm_rf_origin,
+                      low_color=mycolor_hex("cream"),
+                      high_color =mycolor_hex("dark_choc")) -> rf_p2
+
+grid.arrange(rf_p1, rf_p2, ncol = 2)
+
+```
+
+```{r, echo=FALSE}
+
+summaryMatrix(data_train=rf_origin_result_train,
+              v_actual_train = rf_origin_result_train$price_range_actual,
+              v_prediction_train = rf_origin_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=rf_origin_result,
+              v_actual_test = rf_origin_result$price_range_actual,
+              v_prediction_test = rf_origin_result$price_range_prediction,
+              header_color_test = mycolor_hex("dark_choc")
+              )
+
+```
+
+
+Hasil evaluasi model Random Forest menggunakan Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi lumayan bagus, dimana tingkat akurasi pada data train sebesar **88.4%** dan tingkat akurasi pada data test sebesar **89.14%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 8 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 9 ponsel, hasil prediksi harga kelas High Cost meleset 15 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 11 ponsel. Namun, dapat kita simpulkan bahwa metode Random Forest ini lebih baik daripada metode Naive Bayes dan metode Decision Tree yang sudah dicoba sebelumnya. Selain itu model Random Forest ini dapat dikatakan Fit karena selisih akurasi klasifikasi pada data train dan data test cukup kecil yaitu **0.74%**. Mari kita coba Random Forest mengunakan K-Fold Cross Validation. 
+
+
+***
+
+<br>
+### Random Forest with K-Fold Cross Validation
+
+K-Fold Cross Validation adalah adalah salah satu metode Cross Validation yang membuat lipatan/partisi data sebanyak K dan mengulangi (meng-iterasi) experimennya sebanyak K juga. Pada pembagian train dan test sebelumnya, kita membagi data train sebanyak 1604 observasi. Misalkan kita menggunakan nilai K=10, berarti kita membagi 1604 data menjadi 10 partisi yang masing-masing memiliki 160 s.d. 161 data. Setelah melakukan 10 partisi, metode ini akan membagi 1 partisi sebagai data test dan 9 partisi lainnya menjadi data train untuk dilakukan iterasi sebanyak 10 kali. Dalam proses iterasi, setiap partisi akan mengalami proses sebagai data test dan data train sampai jumlah iterasi terpenuhi dengan syarat setiap iterasi menggunakan partisi data test dan partisi data train yang berbeda. Berikut ilustrasinya jika menggunakan K=5:
+
+<center>
+![](assets/kfolds.png){width=480px}
+<br>sumber: http://ethen8181.github.io/machine-learning/model_selection/model_selection.html
+</center>
+
+<br>
+<br>
+**Beirkut pemodelan Random Forest dengan K-Fold Cross Validation menggunakan K=10**
+
+```{r, eval=F, echo = TRUE}
+# Random Forest method with K-Fold Cross Validation using K=10
+set.seed(777)
+kf_control <- trainControl(method = 'repeatedcv', number = 10, repeats = 10)
+rf_model <- train(price_range ~.,
+                  data = phone_train,
+                  method = "rf",
+                  trControl= kf_control)
+
+wd <-  as.character(getwd())
+saveRDS(object=rf_model, file=paste(paste(wd,"/model/",sep = ""),"phone_rf_kfold.rds",sep=""))
+```
+
+Chunk dari model diatas tidak dirunning karena memakan waktu yang cukup lama. Hasil model ini disimpan dalam RDS sehingga bisa langsung di load. berikut hasilnya:
+```{r}
+rf_kfold_model <- readRDS("model/phone_rf_kfold.rds")
+#rf_model$finalModel[c("call", "confusion","oob.times")]
+rf_kfold_model$finalModel
+
+```
+
+Data diatas merupakan informasi terkait model Random Forest dengan menerapkan K-Fold yang sudah dibuat. Model yang dibuat menggunakan 500 tree dan jumlah variabel yang dicoba setiap percabangan ada 11 variabel. Model ini mendapat nilai OOB (Out Of Box) dengan estimasi error rate pada data train sebesar **9.98%**, yang dimana nilai error lebih kecil daripada model Random Forest yang dibuat sebelumnya (poin 6.3.1). Jika dilihat, hal yang jelas berbeda dari model random forest sebelumnya yaitu jumlah variabel/prediktor yang digunakan. Pada model sebelumnya hanya menggunakan 4 variabel, dan pada model ini menggunakan 11 variabel pada pada setiap partisinya. Pertanyaannya mengapa?
+
+```{r}
+plot(rf_kfold_model, main="Selected Predictors vs Accuracy")
+```
+
+
+Kita tidak menentukan jumlah prediktor pada saat membuat model random forest ini, sehingga model akan memilih prediktor secara acak dan melakukan pembelajaran pada proses iterasi yang dilakukan, yang kemudian mencari akurasi optimum. Dapat dilihat pada plot diatas, akurasi optimum terletak ketika menggunakan 11 prediktor. Mari kita lihat, prediktor apa yang memiliki pengaruh besar pada model ini?
+
+```{r}
+varImp(rf_kfold_model)
+```
+
+Data diatas ditampilkan berurutan mulai dari variabel yang paling penting/berpengaruh dalam menentukan kelas harga. Dari 20 variabel prediktor yang kita punya, **ram** merupakan variabel yang paling penting dan **blue1** merupakan variabel yang paling tidak penting. Mari kita coba lihat hasil prediksi model ini terhadap data tes.
+
+```{r}
+# Predict to data Train
+rf_kfold_prediction_train <- predict(rf_kfold_model, phone_train)
+rf_kfold_probability_train <- predict(rf_kfold_model, phone_train, type = "prob")
+
+rf_kfold_result_train <- cbind(phone_train, price_range_prediction=rf_kfold_prediction_train,
+                    round(rf_kfold_probability_train,3))
+                    
+# Data Predict
+rf_kfold_result_train <- rf_kfold_result_train[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_train))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+# Predict to Data Test
+rf_kfold_prediction <- predict(rf_kfold_model, phone_test)
+rf_kfold_probability <- predict(rf_kfold_model, phone_test, type="prob")
+
+# Data Predict
+rf_kfold_result <- cbind(phone_test, price_range_prediction=rf_kfold_prediction,
+                    round(rf_kfold_probability,3))
+
+rf_kfold_result <- rf_kfold_result[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_test))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+rf_kfold_result
+```
+
+Data diatas merupakan hasil prediksi metode Random Forest yang menerapkan K-Fold Cross Validation terhadap data tes. **price_range_actual** merupakan data sebenarnya dan **price_range_prediction** merupakan data hasil prediksi, kemudian Data **low cost, medium cost, high cost dan very high cost** merupakan nilai probability terhadap setiap kelas dari target variabel. Sehingga, hasil prediksi pada **price_range_prediction** diambil berdasarkan nilai probability yang paling tinggi. Mari kita cek hasil evaluasinya menggunakan Confussion Matrix: 
+
+
+```{r, fig.asp=0.5, fig.width = 12}
+# Model Evaluation Random Forest using K-Fold Cross Validation K=10
+cfm_rf_kfold_train <- confusionMatrix(
+  data =rf_kfold_result_train$price_range_prediction, 
+  reference =rf_kfold_result_train$price_range_actual
+)
+
+ggplotConfusionMatrix(my_title = "Random Forest with K-Fold: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+                      dat_type="Train",
+                      cfm=cfm_rf_kfold_train,
+                      low_color=mycolor_hex("smooth_blue"),
+                      high_color =mycolor_hex("light_blue")) -> kfold_p1
+
+
+cfm_rf_kfold <- confusionMatrix(
+  data =rf_kfold_result$price_range_prediction, 
+  reference =rf_kfold_result$price_range_actual
+)
+
+
+ggplotConfusionMatrix(my_title = "",
+                      dat_type="Test",
+                      cfm=cfm_rf_kfold,
+                      low_color=mycolor_hex("cream"),
+                      high_color =mycolor_hex("dark_choc")) -> kfold_p2
+
+grid.arrange(kfold_p1, kfold_p2, ncol = 2)
+
+```
+
+```{r, echo=FALSE}
+summaryMatrix(data_train=rf_kfold_result_train,
+              v_actual_train = rf_kfold_result_train$price_range_actual,
+              v_prediction_train = rf_kfold_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=rf_kfold_result,
+              v_actual_test = rf_kfold_result$price_range_actual,
+              v_prediction_test = rf_kfold_result$price_range_prediction,
+              header_color_test = rf_kfold_result("dark_choc")
+              )
+```
+
+
+Hasil evaluasi Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi model ini **100%** apabila menggunakan data data train sedangkan tingkat akurasi pada data test sebesar **92.17%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 6 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas High Cost meleset 7 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 8 ponsel. Jika hanya melihat tingkat akurasi saja, maka model ini merupakan model yang memiliki akurasi paling tinggi. Namun perlu dipertimbangkan dan butuh evaluasi lebih lanjut lagi karena model ini termasuk **Underfit model** dengan selisih yang cukup besar yaitu **7.83%**.
 
 ***
 
@@ -702,31 +1003,256 @@ confusionMatrix(
 
 
 
-## Multinomial Logistic Regression
-```{r}
-multinom_model <- multinom(price_range~.,data=phone_train)
-summary(multinom_model)
-#head(round(fitted(multinom_model),9),1)
-#head(fitted(multinom_model),1)
-multinom_predict <- predict(multinom_model,phone_test, type="probs")
+## Multinomial Regression
 
-phone_multinome_predict <- phone_test %>% 
-  mutate(
-    predict_price_range= predict(multinom_model, phone_test)
-  )
-
-phone_multinome_predict <- cbind(phone_multinome_predict,
-                                 round(predict(multinom_model, phone_test, type = "probs"),9))
+**Multinomial Logistic Regression (MLR)** <br>
+Multinomial Logistic Regression (MLR) merupakan regresi logistik yang digunakan saat variabel target bersifat multi-level atau lebih dari 2 kelas level. Sama seperti regresi linear dan regresi logistik, feature selection atau pemilihan variabel prediktor untuk pemodelan MLR bisa berdasarkan business wise atau dapat menggunakan pendekatan step-wise. Pada pemodelan ini, saya menggunakan model berdasarkan nilai AIC terkecil yang dihasilkan pendekatan step-wise. Berikut prosesnya:
 
 
-confusionMatrix(
-  phone_multinome_predict$predict_price_range,
-   phone_test$price_range
+```{r, eval=FALSE}
+# Model Fitting
+mlnom_all <- nnet::multinom(price_range~.,data=phone_train)
+
+# Step wise
+mlnom_step_model <- step(
+  object = mlnom_all,
+  direction = c("both", "backward", "forward"),
+  trace = FALSE
 )
 
+wd <-  as.character(getwd())
+saveRDS(object=mlnom_step_model, file=paste(paste(wd,"/model/",sep = ""),"mlnom_step_model.rds",sep=""))
+```
+
+Proses Step-wise diatas pada chunk diatas tidak saya jalankan karena hasilnya cukup panjang untuk ditampilkan. Namun berikut summary hasil pemodelannya:
+
+```{r}
+mlnom_step_model <- readRDS("model/mlnom_step_model.rds")
+summary(mlnom_step_model)
+```
+
+Pada hasil summary model MLR diatas, nilai AIC terkecil dihasilkan yaitu 157.3763 dengan menggunakan 13 variabel.
+Dari nilai koefisien ini bisa diketahui pengaruh dari variabel prediktor tersebut bersifat postif atau negatif terhadap masing-masing kelas harga. Mari kita coba lakukan prediksi.
+
+
+```{r}
+# Predict to data Train
+mlnom_prediction_train <- predict(mlnom_step_model, phone_train)
+mlnom_probability_train <- predict(mlnom_step_model, phone_train, type = "prob")
+
+mlnom_result_train <- cbind(phone_train, price_range_prediction=mlnom_prediction_train,
+                    round(mlnom_probability_train,3))
+                    
+# Data Predict
+mlnom_result_train <- mlnom_result_train[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_train))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+
+# Predict to Data Test
+mlnom_prediction <- predict(mlnom_step_model, phone_test)
+mlnom_probability <- predict(mlnom_step_model, phone_test, type="prob")
+
+# Data Predict
+mlnom_result <- cbind(phone_test, price_range_prediction=mlnom_prediction,
+                    round(mlnom_probability,3))
+
+mlnom_result <- mlnom_result[,c(21,22,23,24,25,26)] %>% 
+  setnames("price_range", "price_range_actual") %>%
+  arrange(price_range_actual) %>% 
+  mutate(
+    no=seq(1:nrow(phone_test))
+  ) %>% 
+  select(7,1,2,3,4,5,6)
+
+mlnom_result
+
+```
+
+Data diatas merupakan hasil klasifikasi menggunakan metode Multinomial Logistic Regression terhadap data tes. **price_range_actual** merupakan data sebenarnya dan **price_range_prediction** merupakan data hasil prediksi, kemudian Data **low cost, medium cost, high cost dan very high cost** merupakan nilai probability terhadap setiap kelas dari target variabel. Sehingga, hasil prediksi pada **price_range_prediction** diambil berdasarkan nilai probability yang paling tinggi. Mari kita cek hasil evaluasinya menggunakan Confussion Matrix: 
+
+```{r, fig.asp=0.5, fig.width=12}
+# Model Evaluation MLR 
+cfm_mlnom_train <- confusionMatrix(
+  data = mlnom_result_train$price_range_prediction, 
+  reference =mlnom_result_train$price_range_actual
+)
+
+ggplotConfusionMatrix(my_title = "Multinomial Logistic Regression: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+                      dat_type="Train",
+                      cfm=cfm_mlnom_train,
+                      low_color=mycolor_hex("smooth_blue"),
+                      high_color =mycolor_hex("light_blue")) -> mlnom_p1
+
+
+cfm_mlnom <- confusionMatrix(
+  data = mlnom_result$price_range_prediction, 
+  reference = mlnom_result$price_range_actual
+)
+
+
+ggplotConfusionMatrix(my_title = "",
+                      dat_type="Test",
+                      cfm=cfm_mlnom,
+                      low_color=mycolor_hex("cream"),
+                      high_color =mycolor_hex("dark_choc")) -> mlnom_p2
+
+grid.arrange(mlnom_p1, mlnom_p2, ncol = 2)
+```
+
+```{r, echo=FALSE}
+summaryMatrix(data_train= mlnom_result_train,
+              v_actual_train = mlnom_result_train$price_range_actual,
+              v_prediction_train = mlnom_result_train$price_range_prediction,
+              header_color_train = mycolor_hex("light_blue"),
+              
+              data_test=rf_kfold_result,
+              v_actual_test = mlnom_result$price_range_actual,
+              v_prediction_test = mlnom_result$price_range_prediction,
+              header_color_test = mlnom_result("dark_choc")
+              )
+```
+
+Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi model ini 
+**98.88%** apabila model ini diuji kembali terhadap data data train, sedangkan tingkat akurasi pada data test sebesar **97.73%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 3 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 2 ponsel, hasil prediksi harga kelas High Cost meleset 2 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 2 ponsel. Berdasar hasil tersebut, maka model ini dapat dikatakan Fit karena selisih akurasi klasifikasi pada data train dan data test cukup kecil yaitu **1.15%**. **Selain itu, dapat kita simpulkan bahwa metode Multinomial Logistic Regression ini lebih baik daripada metode Naive Bayes, Decision Tree dan Random Forest yang sudah dicoba sebelumnya khusus untuk case ini karena merupakan Fitted Model yang menghasilkan akurasi paling tinggi.**
+
+
+
+# Model Implementation
+Seperti yang dijelaskan sebelumnya, Bob ingin mengetahui klasifikasi harga dari setiap produk telepon seluler yang diproduksi oleh perusahaannya, sehinnga Bob memberikan 1000 data telepon seluler yang diproduksi oleh perusahaannya. Berikut data-datanya:
+```{r}
+phone_bob <- read.csv("data_input/phone_validation.csv")
+data.frame("total.data" = dim(phone_bob)[1],
+           "total.variabel" = dim(phone_bob)[2])
+
+```
+
+**Struktur Data**<br>
+```{r}
+glimpse(phone_bob)
+```
+
+<br>
+
+Berdasarkan struktur data diatas, terdapat variabel-variabel yang tipe datanya perlu disesuaikan lagi berdasar sifat datanya sesuai dengan deskripsi variabel yang sudah dijelaskan pada poin 2.2. Adapun variabel yang perlu disesuaikan yaitu:
+  1. *blue* :  di-konversi dari integer menjadi factor/kategorik <br>
+  2. *dual_sim* : di-konversi dari integer menjadi factor/kategorik <br>
+  3. *four_g* : di-konversi dari integer menjadi factor/kategorik <br>
+  4. *three_g* : di-konversi dari integer menjadi factor/kategorik <br>
+  5. *touch_screen* : di-konversi dari integer menjadi factor/kategorik <br>
+  6. *wifi* : di-konversi dari integer menjadi factor/kategorik <br>
+  
+
+```{r}
+id <- phone_bob$id
+phone_bob <- phone_bob %>%
+  mutate(
+    blue = as.factor(blue),
+    dual_sim  = as.factor(dual_sim),
+    four_g = as.factor(four_g),
+    three_g = as.factor(three_g),
+    touch_screen = as.factor(touch_screen),
+    wifi = as.factor(wifi)
+  ) %>% 
+  select(-id)
+
+```
+<br>
+
+**Missing Value ?**<br>
+Tidak terdapat missing value pada data ini, sehingga bisa kita lanjutkan ke tahap klasifikasi.
+```{r}
+colSums(is.na(phone_bob))
+```
+
+<br>
+
+**Model Implementation**<br>
+Berdasarkan hasil evaluasi model sebelumnya, model yang memiliki performa paling baik adalah model Multinomial Logistic Regression, sehinga kita akan menggunakan model tersebut untuk mengklasifikasikan telepon seluler miliki perusahaan Bob.
+
+```{r}
+# Predict to Data Test
+mlnom_prediction_bob <- predict(mlnom_step_model, phone_bob)
+mlnom_probability_bob <- predict(mlnom_step_model, phone_bob, type="prob")
+
+# Data Predict
+phone_classification <- cbind(id, price_range_prediction=mlnom_prediction_bob,
+                    round(mlnom_probability_bob,3),phone_bob)
+
+phone_classification %>% 
+   arrange(id)
+```
+
+Data diatas merupakan hasil klasifikasi telepon seluler yang diproduksi oleh preusahaan Bob. Berikut prporsi hasil klasifikasinya:
+
+```{r}
+# Proportion of Result
+phone_classification %>% group_by(price_range_prediction) %>% summarise(freq=n()) %>% 
+ggplot( aes(x="", y=freq, fill=price_range_prediction)) + 
+  geom_bar(stat="identity", width=1)+
+  coord_polar("y", start=0) + 
+  geom_text(aes(label = paste0(round((freq/sum(freq))*100), "%")),
+            position = position_stack(vjust = 0.5),color="white")+
+  scale_fill_manual(values=c(mycolor_hex("orange"),
+                             mycolor_hex("semi_orange"),
+                             mycolor_hex("light_orange"),
+                             mycolor_hex("dark_orange"))) +
+  labs(x = NULL, y = NULL, fill = "Price Range", title = "Proportion of Phone Price Classification Result on Bob's Company")+
+  theme_classic() + 
+  theme(axis.line = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        axis.title=element_text(size=9,face="bold"), 
+        legend.position = "right"
+        )
+
+```
+
+Pie chart diatas merupakan proporsi hasil klasifikasi harga telepon seluler yang diproduksi oleh perusahaan Bob. Proporsi paling tinggi yaitu telepon seluler kelas Very High Cost dan proporsi paling rendah adalah kelas Medium Cost. Namun secara keseluruhan proporsi ini cukup seimbang.
+
+
+***
+
+<br>
+
+# Summary
+
+Berdasarkan dataset dan pemodelan yang dilakukan, model Multinomial Logistic Regression (MLR) lebih baik daripada metode Naive Bayes, Decision Tree dan Random Forest khusus untuk case ini karena merupakan Fitted Model yang menghasilkan akurasi paling tinggi. Hasil evaluasi menggunakan Confussion Matrix pada metode MLR menunjukan tingkat akurasi hasil klasifikasi model ini **98.88%** apabila model ini diuji kembali terhadap data data train, sedangkan tingkat akurasi pada data test sebesar **97.73%**. Sehinnga model ini yang paling layak untuk diimplementasikan untuk masalah kalsifikasi harga telepon seluler di perusahaan Bob. Kemudian, berdasarkan proses implementasi model, diketahui telepon seluler kelas Very High Cost paling banyak diproduksi dan telepon seluler kelas Medium Cost paling sedikit diproduksi. Namun secara keseluruhan proporsi ini cukup seimbang, berikut detail jumlahnya:
+
+```{r, echo=FALSE}
+library(scales)
+phone_classification %>% 
+  group_by(price_range_prediction) %>% 
+  summarise(freq=n()) %>% 
+ggplot(aes(x=price_range_prediction, y=freq))+
+geom_bar(aes(fill=freq), stat = "identity", position = "dodge",width = 0.9, show.legend = FALSE)+
+geom_text(aes(label=freq, y=freq+10), vjust = -0.5, size=4) +
+labs(
+  title = "Summary of Phone Price Classification on Bob's Company",
+  x="Price Range",
+  y="Total Phone"
+)+
+theme_minimal()+
+ theme(
+      axis.title=element_text(size=9, face="bold"),
+      axis.text.x=element_text(size=9)
+      ) +
+scale_fill_gradient(low=mycolor_hex("cream"), high=mycolor_hex("light_orange"))
 ```
 
 
 
-# Notes:<br>
-Sorry, full Analysis and Modelling is Inprogress. I Will update soon.
+# Reference
+
+1. [Wine Enthusiast II](https://rpubs.com/nabiilahardini/wine-ndf)
+2. [Classification in Machine Learning 2](https://rpubs.com/knoxxturnal/Perbandingan_Analisis_Breast_Cancer_Dengan_Pendekatan_Metode_Naive_Bayes_Decision_Tree_dan_Random_Forest)
+3. [How to use Multinomial and Ordinal Logistic Regression in R ?](https://www.analyticsvidhya.com/blog/2016/02/multinomial-ordinal-logistic-regression/)
+4. [Mobile Price Classification](https://www.kaggle.com/iabhishekofficial/mobile-price-classification) 
+
+
+

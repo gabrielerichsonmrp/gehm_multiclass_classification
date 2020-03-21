@@ -37,12 +37,14 @@ p {
     color: #ffffff;
     background-color: #0380ca;
     border-color: #2f4b7c;
+    font-size: 14px;
 }
 
 .nav>li>a:hover, .nav>li>a:focus {
     text-decoration: none;
     background-color: #1a242f;
     color: white;
+    font-size: 14px;
 }
 
 .nav-tabs>li.active>a, .nav-tabs>li.active>a:hover, .nav-tabs>li.active>a:focus {
@@ -51,20 +53,24 @@ p {
     border: 1px solid #1a242f;
     border-bottom-color: transparent;
     cursor: default;
+    font-size: 14px;
 }
 
 .nav-tabs {
     border-bottom: 1px solid #1a242f;
+    font-size: 14px;
 }
 
 .nav-pills li>a {
 
   border: 2px solid #f47c3c40;
+  font-size: 14px;
 }
 
 .nav-pills>li.active>a, .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus {
   color: #ffffff;
   background-color: #006b21c4;
+  font-size: 14px;
 }
 
 .nav>li>a:hover, .nav>li>a:focus {
@@ -72,6 +78,7 @@ p {
   text-decoration: none;
   background-color: #bbc1c78a;
   color: #6f6f6f;
+  font-size: 14px;
 }
 
 .tocify {
