@@ -1,23 +1,29 @@
 ---
 title: "Mobile Price Classification"
 author: "by Gabriel Erichson"
-output: 
+output:
   html_document:
     df_print: paged
     code_folding: hide
     toc: true
     toc_depth: 2
-    toc_float: 
+    toc_float:
       collapsed: true
     number_sections: true
     theme: sandstone
     highlight: haddock
-    css: style.css
+    css:  style.css
   pdf_document: default
 ---
 
+<head>
+		<title>Mobile Price Classification</title>
+		<link rel="icon" href="assets/logo.png" type="image/png">
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
 
-
+Github: https://github.com/gabrielerichsonmrp/gehm_multiclass_classification <br>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
@@ -90,10 +96,11 @@ mycolor_hex <- get_hex(mycolorfill)
 ```
 
 
+
 # Intro
-Bob telah memulai perusahaan selulernya sendiri. Dia ingin berjuang keras supaya bisa menjadi perusahaan besar seperti Apple, Samsung dll. Kendalanya, dia tidak tahu bagaimana memperkirakan kelas harga ponsel yang diciptakan perusahaannya? Di pasar telepon seluler yang kompetitif ini Bob tidak ingin berasumsi begitu saja, sehingga ia mengumpulkan data penjualan ponsel dari berbagai perusahaan. Bob ingin mengetahui hubungan antara fitur-fitur ponsel (misalnya: - RAM, Memori Internal, dll) untuk menentukan kelas harga jualnya, sehingga ia dapat melakukan pemasaran ke masing-masing segmen customer dengan lebih efektif. Dalam hal ini, Bob sudah mengumpulkan data penjualan ponsel dengan dengan kelas harga *low cost*, *medium cost*, *high cost* dan *very high cost*. Dalam hal ini, Bob membutuhkan bantuan untuk merprediksi setiap ponsel yang sudah diciptakan perusahaannya masuk ke kelas harga mana.
+Bob telah memulai perusahaan selulernya sendiri. Dia ingin berjuang keras supaya bisa menjadi perusahaan besar seperti Apple, Samsung dll. Kendalanya, dia tidak tahu bagaimana memperkirakan kelas harga ponsel yang diciptakan perusahaannya? Di pasar telepon seluler yang kompetitif ini Bob tidak ingin berasumsi begitu saja, sehingga ia mengumpulkan data penjualan ponsel dari berbagai perusahaan. Bob ingin mengetahui hubungan antara fitur-fitur ponsel (misalnya: - RAM, Memori Internal, dll) untuk menentukan kelas harga jualnya, sehingga ia dapat melakukan pemasaran ke masing-masing segmen customer dengan lebih efektif. Bob sudah mengumpulkan data penjualan ponsel dengan dengan kelas harga *low cost*, *medium cost*, *high cost* dan *very high cost*. Dalam hal ini, Bob membutuhkan bantuan untuk merprediksi setiap ponsel yang sudah diciptakan perusahaannya masuk ke kelas harga mana.
 
-
+<br>
 # Data Preparation {.tabset .tabset-fade .tabset-pills}
 Dataset ini didownload dari [Mobile Price Classification](https://www.kaggle.com/iabhishekofficial/mobile-price-classification) 
 
@@ -119,6 +126,9 @@ head(phone,10)
 ```{r}
 tail(phone, 10)
 ```
+
+
+<br>
 
 
 ## Variable Description
@@ -150,6 +160,7 @@ wifi            | Support Wifi                        | Ya: 1, Tidak: 0
 price_range     | Kelas harga *Target Variabel*       | low cost:0, medium cost:1, high cost:2 dan very high cost:3
 
 
+<br>
 
 
 # Data Pre-processing {.tabset .tabset-fade .tabset-pills}
@@ -311,7 +322,8 @@ ggplot(df_split, aes(x=Var1,y=Freq, fill=type))+
       axis.text.x=element_text(size=10),
       axis.text.y=element_text(size=10)
       )+
-  mycolor_fill()
+   scale_fill_manual(values=c(mycolor_hex("smooth_blue"),
+                             mycolor_hex("light_blue"))) 
 
 ```
 
@@ -327,7 +339,7 @@ ggplot(df_split, aes(x=Var1,y=Freq, fill=type))+
 Seperti yang dijelaskan pada intro diawal, Bob ingin memprediksi sebuah ponsel masuk ke kelas harga **low cost**, **medium cost**, **high cost** atau **very high cost**. Berdasarkan dataset yang dimiliki, maka yang menjadi target variabel untuk diprediksi adalah *price_range*. Proses pemodelan kali ini mengunakan beberapa metode klasifikasi yaitu Naive Bayes, Decision Tree, Random Forest dan Multinomial Logistic Regression. 
 
 
-```{r}
+```{r, echo=FALSE}
 ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
   # metrics summary
   
@@ -403,7 +415,8 @@ sm <- cbind(data.frame(data=c("data train","data test")),sm)
 
 ## Naive Bayes
 
-**Naive Bayes**<br>
+<p style="font-size:140%;"><b>Naive Bayes</b></p>
+
 Metode Naive Bayes memiliki asumsi awal yaitu semua variabel bersifat independen atau tidak saling berkorelasi. Pada matriks korelasi diatas menunjukan beberapa variabel memiliki korelasi, sehingga dapat disimpulkan bahwa metode Naive Bayes akan kurang maksimal untuk case kalsifikasi ini. Namun, mari kita tetap kita coba. Berikut hasilnya:
 
 ```{r}
@@ -507,8 +520,7 @@ Hasil evaluasi pada Confussion Matrix diatas menunjukan model Naive Bayes yang s
 
 
 ## Decision Tree
-
-**Decision Tree**<br>
+<p style="font-size:140%;"><b>Decision Tree</b></p>
 Decision tree merupakan suatu metode klasifikasi yang menggunakan struktur pohon, dimana setiap node merepresentasikan atribut dan cabangnya merepresentasikan nilai dari atribut, sedangkan daunnya digunakan untuk merepresentasikan kelas. Decision tree merupakan metode klasifikasi yang cukup **powerfull** karena *memperbolehkan antar prediktornya saling berkorelasi*, *prediktor* juga dapat berupa *data numerik ataupun kategorik* dan cukup *interpretabale*  
 
 ```{r}
@@ -720,9 +732,7 @@ Berdasar hasil evaluasi diatas, model decision tree dengan penerapan pruning yan
 <br>
 
 ## Random Forest
-
-
-**Random Forest**<br>
+<p style="font-size:140%;"><b>Random Forest</b></p>
 Random forest merupakan metode klasifikasi berbasis ensamble method dan dibangun dari beberapa decision tree yang berbeda karakteristiknya. Ensamble method sendiri merupakan dimana terdapat beberapa model berbeda yang dilatih untuk memecahkan masalah yang sama dan digabungkan untuk mendapatkan hasil terbaik. Penerapannya pada random forest yaitu metode Random Forest akan membangun beberapa Decision Tree yang dimana setiap membangun 1 tree digunakan observasi dan prediktor yang berbeda dari hasil sampling untuk dilatih dan mencari hasil terbaik. Performa model Random Forest ini akan kurang baik apabila data prediktor memiliki variansi rendah atau variansinya mendekati 0(nol). Maka, sebelum melakukan pemodelan mari kita cek variansinya dahulu:
 
 ```{r}
@@ -862,6 +872,7 @@ Hasil evaluasi model Random Forest menggunakan Confussion Matrix diatas menunjuk
 ***
 
 <br>
+
 ### Random Forest with K-Fold Cross Validation
 
 K-Fold Cross Validation adalah adalah salah satu metode Cross Validation yang membuat lipatan/partisi data sebanyak K dan mengulangi (meng-iterasi) experimennya sebanyak K juga. Pada pembagian train dan test sebelumnya, kita membagi data train sebanyak 1604 observasi. Misalkan kita menggunakan nilai K=10, berarti kita membagi 1604 data menjadi 10 partisi yang masing-masing memiliki 160 s.d. 161 data. Setelah melakukan 10 partisi, metode ini akan membagi 1 partisi sebagai data test dan 9 partisi lainnya menjadi data train untuk dilakukan iterasi sebanyak 10 kali. Dalam proses iterasi, setiap partisi akan mengalami proses sebagai data test dan data train sampai jumlah iterasi terpenuhi dengan syarat setiap iterasi menggunakan partisi data test dan partisi data train yang berbeda. Berikut ilustrasinya jika menggunakan K=5:
@@ -1004,8 +1015,7 @@ Hasil evaluasi Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifi
 
 
 ## Multinomial Regression
-
-**Multinomial Logistic Regression (MLR)** <br>
+<p style="font-size:140%;"><b>Multinomial Logistic Regression (MLR)</b></p>
 Multinomial Logistic Regression (MLR) merupakan regresi logistik yang digunakan saat variabel target bersifat multi-level atau lebih dari 2 kelas level. Sama seperti regresi linear dan regresi logistik, feature selection atau pemilihan variabel prediktor untuk pemodelan MLR bisa berdasarkan business wise atau dapat menggunakan pendekatan step-wise. Pada pemodelan ini, saya menggunakan model berdasarkan nilai AIC terkecil yang dihasilkan pendekatan step-wise. Berikut prosesnya:
 
 
@@ -1082,7 +1092,7 @@ cfm_mlnom_train <- confusionMatrix(
   reference =mlnom_result_train$price_range_actual
 )
 
-ggplotConfusionMatrix(my_title = "Multinomial Logistic Regression: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
+ggplotConfusionMatrix(my_title = "Multinomial Regression: Model Evaluation on Data Train vs Data Test using Confussion Matrix",
                       dat_type="Train",
                       cfm=cfm_mlnom_train,
                       low_color=mycolor_hex("smooth_blue"),
@@ -1120,7 +1130,9 @@ summaryMatrix(data_train= mlnom_result_train,
 Hasil evaluasi menggunakan Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi model ini 
 **98.88%** apabila model ini diuji kembali terhadap data data train, sedangkan tingkat akurasi pada data test sebesar **97.73%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 3 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 2 ponsel, hasil prediksi harga kelas High Cost meleset 2 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 2 ponsel. Berdasar hasil tersebut, maka model ini dapat dikatakan Fit karena selisih akurasi klasifikasi pada data train dan data test cukup kecil yaitu **1.15%**. **Selain itu, dapat kita simpulkan bahwa metode Multinomial Logistic Regression ini lebih baik daripada metode Naive Bayes, Decision Tree dan Random Forest yang sudah dicoba sebelumnya khusus untuk case ini karena merupakan Fitted Model yang menghasilkan akurasi paling tinggi.**
 
+***
 
+<br>
 
 # Model Implementation
 Seperti yang dijelaskan sebelumnya, Bob ingin mengetahui klasifikasi harga dari setiap produk telepon seluler yang diproduksi oleh perusahaannya, sehinnga Bob memberikan 1000 data telepon seluler yang diproduksi oleh perusahaannya. Berikut data-datanya:
@@ -1222,7 +1234,7 @@ Pie chart diatas merupakan proporsi hasil klasifikasi harga telepon seluler yang
 
 # Summary
 
-Berdasarkan dataset dan pemodelan yang dilakukan, model Multinomial Logistic Regression (MLR) lebih baik daripada metode Naive Bayes, Decision Tree dan Random Forest khusus untuk case ini karena merupakan Fitted Model yang menghasilkan akurasi paling tinggi. Hasil evaluasi menggunakan Confussion Matrix pada metode MLR menunjukan tingkat akurasi hasil klasifikasi model ini **98.88%** apabila model ini diuji kembali terhadap data data train, sedangkan tingkat akurasi pada data test sebesar **97.73%**. Sehinnga model ini yang paling layak untuk diimplementasikan untuk masalah kalsifikasi harga telepon seluler di perusahaan Bob. Kemudian, berdasarkan proses implementasi model, diketahui telepon seluler kelas Very High Cost paling banyak diproduksi dan telepon seluler kelas Medium Cost paling sedikit diproduksi. Namun secara keseluruhan proporsi ini cukup seimbang, berikut detail jumlahnya:
+Berdasarkan dataset dan pemodelan yang dilakukan, model **Multinomial Logistic Regression (MLR)** lebih baik daripada metode Naive Bayes, Decision Tree dan Random Forest khusus untuk case ini karena merupakan Fitted Model yang menghasilkan akurasi paling tinggi. Hasil evaluasi menggunakan Confussion Matrix pada model **MLR** menunjukan tingkat akurasi hasil klasifikasi model ini **98.88%** apabila model ini diuji kembali terhadap data data train, sedangkan tingkat akurasi pada data test sebesar **97.73%**. Sehinnga model ini yang paling layak diimplementasikan untuk masalah kalsifikasi harga telepon seluler di perusahaan Bob. Kemudian, berdasarkan proses implementasi model, diketahui telepon seluler kelas Very High Cost paling banyak diproduksi dan telepon seluler kelas Medium Cost paling sedikit diproduksi. Namun secara keseluruhan proporsi ini cukup seimbang, berikut detail jumlahnya:
 
 ```{r, echo=FALSE}
 library(scales)
@@ -1247,12 +1259,14 @@ scale_fill_gradient(low=mycolor_hex("cream"), high=mycolor_hex("light_orange"))
 
 
 
+***
+
+<br>
+
 # Reference
 
 1. [Wine Enthusiast II](https://rpubs.com/nabiilahardini/wine-ndf)
 2. [Classification in Machine Learning 2](https://rpubs.com/knoxxturnal/Perbandingan_Analisis_Breast_Cancer_Dengan_Pendekatan_Metode_Naive_Bayes_Decision_Tree_dan_Random_Forest)
 3. [How to use Multinomial and Ordinal Logistic Regression in R ?](https://www.analyticsvidhya.com/blog/2016/02/multinomial-ordinal-logistic-regression/)
 4. [Mobile Price Classification](https://www.kaggle.com/iabhishekofficial/mobile-price-classification) 
-
-
 
