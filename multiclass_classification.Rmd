@@ -101,6 +101,7 @@ mycolor_hex <- get_hex(mycolorfill)
 Bob telah memulai perusahaan selulernya sendiri. Dia ingin berjuang keras supaya bisa menjadi perusahaan besar seperti Apple, Samsung dll. Kendalanya, dia tidak tahu bagaimana memperkirakan kelas harga ponsel yang diciptakan perusahaannya? Di pasar telepon seluler yang kompetitif ini Bob tidak ingin berasumsi begitu saja, sehingga ia mengumpulkan data penjualan ponsel dari berbagai perusahaan. Bob ingin mengetahui hubungan antara fitur-fitur ponsel (misalnya: - RAM, Memori Internal, dll) untuk menentukan kelas harga jualnya, sehingga ia dapat melakukan pemasaran ke masing-masing segmen customer dengan lebih efektif. Bob sudah mengumpulkan data penjualan ponsel dengan dengan kelas harga *low cost*, *medium cost*, *high cost* dan *very high cost*. Dalam hal ini, Bob membutuhkan bantuan untuk merprediksi setiap ponsel yang sudah diciptakan perusahaannya masuk ke kelas harga mana.
 
 <br>
+
 # Data Preparation {.tabset .tabset-fade .tabset-pills}
 Dataset ini didownload dari [Mobile Price Classification](https://www.kaggle.com/iabhishekofficial/mobile-price-classification) 
 
@@ -339,10 +340,9 @@ ggplot(df_split, aes(x=Var1,y=Freq, fill=type))+
 Seperti yang dijelaskan pada intro diawal, Bob ingin memprediksi sebuah ponsel masuk ke kelas harga **low cost**, **medium cost**, **high cost** atau **very high cost**. Berdasarkan dataset yang dimiliki, maka yang menjadi target variabel untuk diprediksi adalah *price_range*. Proses pemodelan kali ini mengunakan beberapa metode klasifikasi yaitu Naive Bayes, Decision Tree, Random Forest dan Multinomial Logistic Regression. 
 
 
-```{r, echo=FALSE}
+```{r}
+# Fungsi ini digunakan untuk menampilkan hasil confussion matrix
 ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
-  # metrics summary
-  
   my_subtitle <- paste("Data:",dat_type,"    ",
                        "Accuracy:", paste(round((cfm$overall[1])*100,2),"%"),
                        "   ",
@@ -372,7 +372,7 @@ ggplotConfusionMatrix <- function(my_title,dat_type,cfm,low_color,high_color){
   return(plot)
 }
 
-
+# Fungsi ini digunakan untuk menampilkan metrics summary
 summaryMatrix <- function(data_train, v_actual_train, v_prediction_train, header_color_train,
                           data_test, v_actual_test, v_prediction_test, header_color_test){
  sm_train <- data_train %>%
@@ -393,9 +393,7 @@ sm_test <- data_test %>%
  
 sm <- rbind(sm_train,sm_test)
 sm <- cbind(data.frame(data=c("data train","data test")),sm)
-
-
- sm %>% 
+sm %>% 
    mutate(
     data = color_tile(mycolor_hex("dark_choc"),mycolor_hex("light_blue"))(data)
     
@@ -1006,7 +1004,7 @@ summaryMatrix(data_train=rf_kfold_result_train,
 ```
 
 
-Hasil evaluasi Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi model ini **100%** apabila menggunakan data data train sedangkan tingkat akurasi pada data test sebesar **92.17%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 6 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas High Cost meleset 7 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 8 ponsel. Jika hanya melihat tingkat akurasi saja, maka model ini merupakan model yang memiliki akurasi paling tinggi. Namun perlu dipertimbangkan dan butuh evaluasi lebih lanjut lagi karena model ini termasuk **Underfit model** dengan selisih yang cukup besar yaitu **7.83%**.
+Hasil evaluasi Confussion Matrix diatas menunjukan Tingkat akurasi hasil klasifikasi model ini **100%** apabila menggunakan data data train sedangkan tingkat akurasi pada data test sebesar **92.17%**. Dapat dilihat juga, hasil klasifikasi data test pada harga kelas Low Cost meleset sebanyak 6 ponsel, hasil prediksi harga kelas Medium Cost meleset sebanyak 10 ponsel, hasil prediksi harga kelas High Cost meleset 7 ponsel dan hasil prediksi Harga kelas Very Hight Cost meleset 8 ponsel. Jika hanya melihat tingkat akurasi saja, maka model ini merupakan model yang memiliki akurasi yang jauh lebih tinggi dari model Naive Bayes, Decision Tree dan Random Forest tanpa K-Fold, namun perlu dipertimbangkan dan butuh evaluasi lebih lanjut lagi karena model ini termasuk **Underfit model** dengan selisih yang cukup besar yaitu **7.83%**.
 
 ***
 
@@ -1199,7 +1197,7 @@ phone_classification %>%
    arrange(id)
 ```
 
-Data diatas merupakan hasil klasifikasi telepon seluler yang diproduksi oleh preusahaan Bob. Berikut prporsi hasil klasifikasinya:
+Data diatas merupakan hasil klasifikasi telepon seluler yang diproduksi oleh preusahaan Bob. **price_range_prediction** merupakan data hasil klasifikasi, kemudian Data **low cost, medium cost, high cost dan very high cost** merupakan nilai probability terhadap setiap kelas dari target variabel. Hasil prediksi pada **price_range_prediction** diambil berdasarkan nilai probability yang paling tinggi. Jika dilihat dari nilai probability yang dihasilkan, model ini sangat yakin dalam melakukan klasifikasi pada setiap datanya. Berikut proporsi hasil klasifikasinya:
 
 ```{r}
 # Proportion of Result
@@ -1245,7 +1243,7 @@ ggplot(aes(x=price_range_prediction, y=freq))+
 geom_bar(aes(fill=freq), stat = "identity", position = "dodge",width = 0.9, show.legend = FALSE)+
 geom_text(aes(label=freq, y=freq+10), vjust = -0.5, size=4) +
 labs(
-  title = "Summary of Phone Price Classification on Bob's Company",
+  title = "Summary of Mobile Price Classification on Bob's Company",
   x="Price Range",
   y="Total Phone"
 )+
